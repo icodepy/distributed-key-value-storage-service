@@ -1,0 +1,176 @@
+
+services:
+  redis-master:
+    image: redis:7.4.1
+    container_name: redis-master
+    hostname: redisapi
+    ports:
+      - "63791:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - redis-master-data:/data
+    networks:
+      - kvstore-network
+    build:
+      context: .
+      dockerfile: Dockerfile_Redis
+
+  redis-follower1:
+    image: redis:7.4.1
+    container_name: redis-follower1
+    depends_on:
+      - redis-master
+    hostname: redisapi
+    ports:
+      - "6380:6379"
+    command: ["redis-server", "--replicaof", "redis-master", "6379"]
+    volumes:
+      - redis-replica1-data:/data
+    networks:
+      - kvstore-network
+    build:
+      context: .
+      dockerfile: Dockerfile_Redis
+
+  redis-follower2:
+    image: redis:7.4.1
+    container_name: redis-follower2
+    depends_on:
+      - redis-master
+    hostname: redisapi
+    ports:
+      - "6381:6379"
+    command: ["redis-server", "--replicaof", "redis-master", "6379"]
+    volumes:
+      - redis-replica2-data:/data
+    networks:
+      - kvstore-network
+    build:
+      context: .
+      dockerfile: Dockerfile_Redis
+
+  redis-master-2:
+    image: redis:7.4.1
+    container_name: redis-master-2
+    hostname: redisapi
+    ports:
+      - "63792:6379"
+    command: [ "redis-server", "--appendonly", "yes" ]
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - redis-master-2-data:/data
+    networks:
+      - kvstore-network
+    build:
+      context: .
+      dockerfile: Dockerfile_Redis
+
+  redis-master-3:
+    image: redis:7.4.1
+    container_name: redis-master-3
+    hostname: redisapi
+    ports:
+      - "63793:6379"
+    command: [ "redis-server", "--appendonly", "yes" ]
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - redis-master-3-data:/data
+    networks:
+      - kvstore-network
+    build:
+      context: .
+      dockerfile: Dockerfile_Redis
+
+
+
+  kvstore1:
+    container_name: kvstore1
+#    image: kvstore-service
+    hostname: kvstoreapi1
+    ports:
+      - "8089:9090"
+    environment:
+      - SELF_NODE_ID=http://kvstore1:9090
+      - SPRING_APPLICATION_NAME=kvstore
+      - KVSTORE_NODES=http://kvstore1:9090, http://kvstore2:9090, http://kvstore3:9090
+      - SPRING_REDIS_HOST=redis-master
+#      - SPRING_REDIS_PORT=6379
+    networks:
+      - kvstore-network
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile_KVStore
+
+  kvstore2:
+    container_name: kvstore2
+    hostname: kvstoreapi2
+    ports:
+      - "8090:9090"
+    environment:
+      - SELF_NODE_ID=http://kvstore2:9090
+      - SPRING_APPLICATION_NAME=kvstore
+      - KVSTORE_NODES=http://kvstore1:9090, http://kvstore2:9090, http://kvstore3:9090
+      - SPRING_REDIS_HOST=redis-master-2
+#      - SPRING_REDIS_PORT=6379
+    networks:
+      - kvstore-network
+    depends_on:
+      redis-master-2:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile_KVStore
+
+
+  kvstore3:
+    container_name: kvstore3
+    hostname: kvstoreapi3
+    ports:
+      - "8091:9090"
+    environment:
+      - SELF_NODE_ID=http://kvstore3:9090
+      - SPRING_APPLICATION_NAME=kvstore
+      - KVSTORE_NODES=http://kvstore1:9090, http://kvstore2:9090, http://kvstore3:9090
+      - SPRING_REDIS_HOST=redis-master-3
+#      - SPRING_REDIS_PORT=6379
+    networks:
+      - kvstore-network
+    depends_on:
+      redis-master-3:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile_KVStore
+
+
+
+
+volumes:
+  redis-master-data:
+  redis-replica1-data:
+  redis-replica2-data:
+  redis-master-2-data:
+  redis-master-3-data:
+
+networks:
+  kvstore-network:
+    driver: bridge
